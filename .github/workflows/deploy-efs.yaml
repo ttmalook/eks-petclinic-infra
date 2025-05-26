@@ -1,46 +1,34 @@
+# 이 워크플로우는 GitHub Actions를 통해 EFS를 자동으로 생성하고
+# EFS를 사용하는 Helm Chart(petclinic)를 배포하는 전체 자동화 파이프라인입니다.
+
 name: deploy-efs
 
+# 워크플로우 트리거 조건 정의
 on:
-
-  workflow_dispatch:  # 수동 실행
-  push:               # 특정 디렉토리 수정 시 자동 실행
-    paths:
-      - 'efs/**'
-      - '.github/workflows/deploy-efs.yaml'
-
-jobs:
-  efs-setup:
-
+  # 수동 실행 버튼 허용
   workflow_dispatch:
+  
+  # 특정 경로의 파일이 변경될 경우 자동 실행
   push:
     paths:
-      - 'charts/petclinic/**'
-      - '.github/workflows/deploy-efs.yaml'
+      - 'charts/petclinic/**'                        # Helm Chart 내부 변경 감지
+      - '.github/workflows/deploy-efs.yaml'          # 이 워크플로 자체 변경 시
 
 jobs:
   efs-helm-setup:
->>>>>>> 21de8e6 (Update Helm pv.yaml and values.yaml for EFS automation)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # GitHub Actions에서 사용할 runner
 
     env:
-      AWS_REGION: ap-northeast-2
-      EKS_CLUSTER_NAME: petclinic-cluster
-      VPC_STACK_NAME: vpc-3tier-stack
+      AWS_REGION: ap-northeast-2                    # 배포할 리전
+      EKS_CLUSTER_NAME: petclinic-cluster           # EKS 클러스터 이름
+      VPC_STACK_NAME: vpc-3tier-stack               # EFS 생성에 사용할 VPC Stack 이름 (CloudFormation 기준)
 
     steps:
-<<<<<<< HEAD
-      # 1. GitHub 저장소 체크아웃
+      # 1. 저장소 코드 체크아웃
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. AWS 인증 구성
-=======
-      # 1. 저장소 체크아웃
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      # 2. AWS 자격 증명 구성
->>>>>>> 21de8e6 (Update Helm pv.yaml and values.yaml for EFS automation)
+      # 2. GitHub Secrets에서 AWS 자격 증명 불러오기
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -48,83 +36,49 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3. kubectl CLI 설치
+      # 3. kubectl 설치 (kubectl apply, get 등 사용 가능하도록 설정)
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
 
-<<<<<<< HEAD
-      # 4. EKS 클러스터 연결을 위한 kubeconfig 구성
-      - name: Configure kubeconfig for EKS
-        run: |
-          aws eks update-kubeconfig \
-            --region $AWS_REGION \
-            --name $EKS_CLUSTER_NAME
-
-      # 5. VPC 스택에서 subnetId, default security group 추출 및 디버깅 출력
-      - name: Get VPC Stack Outputs (subnet & security group)
-        id: vpc
-        run: |
-          # PublicSubnetA를 OutputKey로 사용
-          subnet_id=$(aws cloudformation describe-stacks \
-            --stack-name $VPC_STACK_NAME \
-            --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetA'].OutputValue" \
-            --output text)
-
-          # VPC ID 추출 후, 해당 VPC의 default 보안 그룹 ID 가져오기
-          vpc_id=$(aws cloudformation describe-stacks \
-            --stack-name $VPC_STACK_NAME \
-            --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" \
-            --output text)
-
-          sg_id=$(aws ec2 describe-security-groups \
-            --region $AWS_REGION \
-            --filters Name=vpc-id,Values=$vpc_id Name=group-name,Values=default \
-            --query "SecurityGroups[0].GroupId" \
-            --output text)
-
-          echo "👉 Subnet ID: $subnet_id"
-          echo "👉 Security Group ID: $sg_id"
-=======
-      # 4. Helm CLI 설치
+      # 4. Helm CLI 설치 (helm upgrade --install 등 사용 가능하도록 설정)
       - name: Install Helm
         uses: azure/setup-helm@v3
 
-      # 5. kubeconfig 구성
+      # 5. EKS 클러스터의 kubeconfig 구성 (kubectl과 helm이 해당 클러스터를 조작할 수 있도록)
       - name: Configure kubeconfig for EKS
         run: |
           aws eks update-kubeconfig \
             --region $AWS_REGION \
             --name $EKS_CLUSTER_NAME
 
-      # 6. VPC에서 SubnetId, VPCId 추출 후 기본 SG 조회
+      # 6. CloudFormation 스택에서 Subnet ID, VPC ID, 보안 그룹 ID 추출
       - name: Get VPC subnet and default SG
         id: vpc
         run: |
+          # PublicSubnetA 키의 서브넷 ID 추출
           subnet_id=$(aws cloudformation describe-stacks \
             --stack-name $VPC_STACK_NAME \
             --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetA'].OutputValue" \
             --output text)
 
+          # VPC ID 추출
           vpc_id=$(aws cloudformation describe-stacks \
             --stack-name $VPC_STACK_NAME \
             --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" \
             --output text)
 
+          # 기본 보안 그룹 ID 추출
           sg_id=$(aws ec2 describe-security-groups \
             --region $AWS_REGION \
             --filters Name=vpc-id,Values=$vpc_id Name=group-name,Values=default \
             --query "SecurityGroups[0].GroupId" \
             --output text)
->>>>>>> 21de8e6 (Update Helm pv.yaml and values.yaml for EFS automation)
 
+          # 추출된 값을 출력 및 워크플로우 출력 변수로 등록
           echo "subnet_id=$subnet_id" >> $GITHUB_OUTPUT
           echo "sg_id=$sg_id" >> $GITHUB_OUTPUT
 
-<<<<<<< HEAD
-      # 6. EFS 파일 시스템 생성
-=======
-      # 7. EFS 파일 시스템 생성
->>>>>>> 21de8e6 (Update Helm pv.yaml and values.yaml for EFS automation)
+      # 7. EFS 파일 시스템 생성 (태그로 구분 가능)
       - name: Create EFS File System
         id: efs
         run: |
@@ -137,11 +91,7 @@ jobs:
           echo "fs_id=$fs_id" >> $GITHUB_OUTPUT
           echo "EFS FileSystem ID: $fs_id"
 
-<<<<<<< HEAD
-      # 7. EFS가 'available' 상태가 될 때까지 수동 대기 루프
-=======
-      # 8. EFS 상태 대기
->>>>>>> 21de8e6 (Update Helm pv.yaml and values.yaml for EFS automation)
+      # 8. EFS 파일 시스템이 'available' 상태가 될 때까지 대기
       - name: Wait for EFS to be available
         run: |
           fs_id=${{ steps.efs.outputs.fs_id }}
@@ -162,11 +112,7 @@ jobs:
             sleep 5
           done
 
-<<<<<<< HEAD
-      # 8. EFS 마운트 타겟 생성 (PublicSubnetA + default SG 사용)
-=======
-      # 9. 마운트 타겟 생성
->>>>>>> 21de8e6 (Update Helm pv.yaml and values.yaml for EFS automation)
+      # 9. EFS 마운트 타겟 생성 (EKS가 있는 서브넷에 연결 + 보안 그룹 설정)
       - name: Create EFS Mount Target
         run: |
           aws efs create-mount-target \
@@ -174,23 +120,8 @@ jobs:
             --subnet-id ${{ steps.vpc.outputs.subnet_id }} \
             --security-groups ${{ steps.vpc.outputs.sg_id }}
 
-<<<<<<< HEAD
-      # 9. Helm values.yaml 수정 - volumeHandle 필드에 EFS ID 주입
-      - name: Update Helm values.yaml (inject EFS volumeHandle)
-        run: |
-          efs_id=${{ steps.efs.outputs.fs_id }}
-          sed -i "s|volumeHandle:.*|volumeHandle: ${efs_id}|" efs/values.yaml
-
-      # 10. EFS 관련 StorageClass / PV / PVC 쿠버네티스에 적용
-      - name: Apply EFS StorageClass, PV, PVC
-        run: |
-          kubectl apply -f efs/storageclass.yaml
-          kubectl apply -f efs/pv.yaml
-          kubectl apply -f efs/pvc.yaml
-=======
-      # 10. Helm으로 EFS 리소스 배포 (EFS ID 자동 주입)
+      # 10. Helm Chart(petclinic)에 EFS ID를 넘겨서 배포
       - name: Deploy EFS via Helm (charts/petclinic)
         run: |
           helm upgrade --install efs-storage ./charts/petclinic \
             --set storage.volumeHandle=${{ steps.efs.outputs.fs_id }}
->>>>>>> 21de8e6 (Update Helm pv.yaml and values.yaml for EFS automation)
