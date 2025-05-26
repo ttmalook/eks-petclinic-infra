@@ -40,27 +40,26 @@ jobs:
             --region $AWS_REGION \
             --name $EKS_CLUSTER_NAME
 
-      # 5. CloudFormation 스택에서 SubnetId, SecurityGroupId 추출
-      - name: Get VPC Stack Outputs (subnet, security group)
-      # 🔍 디버깅: subnet_id, sg_id 출력 확인
-      - name: Debug VPC Outputs
-        run: |
-          echo "👉 Subnet ID: ${{ steps.vpc.outputs.subnet_id }}"
-          echo "👉 Security Group ID: ${{ steps.vpc.outputs.sg_id }}"
+     # 5. CloudFormation 스택에서 SubnetId, SecurityGroupId 추출 및 디버깅
+      - name: Get VPC Stack Outputs (with debug)
         id: vpc
         run: |
           subnet_id=$(aws cloudformation describe-stacks \
-            --stack-name $VPC_STACK_NAME \
-            --query "Stacks[0].Outputs[?OutputKey=='SubnetId'].OutputValue" \
-            --output text)
+          --stack-name $VPC_STACK_NAME \
+          --query "Stacks[0].Outputs[?OutputKey=='SubnetId'].OutputValue" \
+          --output text)
 
           sg_id=$(aws cloudformation describe-stacks \
-            --stack-name $VPC_STACK_NAME \
-            --query "Stacks[0].Outputs[?OutputKey=='SecurityGroupId'].OutputValue" \
-            --output text)
+          --stack-name $VPC_STACK_NAME \
+          --query "Stacks[0].Outputs[?OutputKey=='SecurityGroupId'].OutputValue" \
+          --output text)
+
+          echo "👉 Subnet ID: $subnet_id"
+          echo "👉 Security Group ID: $sg_id"
 
           echo "subnet_id=$subnet_id" >> $GITHUB_OUTPUT
           echo "sg_id=$sg_id" >> $GITHUB_OUTPUT
+
 
       # 6. EFS 파일 시스템 생성
       - name: Create EFS File System
