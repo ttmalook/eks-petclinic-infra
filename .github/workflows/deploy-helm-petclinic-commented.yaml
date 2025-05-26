@@ -11,33 +11,38 @@ on:
 
 jobs:
   helm-deploy:
-    runs-on: ubuntu-latest  # GitHub Actions 기본 Linux 환경
+    runs-on: ubuntu-latest  # GitHub Actions 기본 Linux 환경에서 실행
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3  # 현재 리포지토리의 소스코드를 체크아웃
+      uses: actions/checkout@v3  # 현재 GitHub 저장소의 소스코드를 체크아웃
 
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
+      uses: aws-actions/configure-aws-credentials@v2  # AWS 인증 구성
       with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}          # GitHub Secrets로부터 AWS 인증 정보 로드
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ap-northeast-2                                    # 서울 리전
+        aws-region: ap-northeast-2
 
     - name: Set up kubectl
       uses: azure/setup-kubectl@v3
       with:
-        version: v1.27.1  # 사용할 kubectl 버전
+        version: v1.27.1  # kubectl 버전 설정
 
     - name: Set up Helm
       uses: azure/setup-helm@v3
       with:
-        version: v3.12.0  # 사용할 Helm 버전
+        version: v3.12.0  # Helm 버전 설정
+
+    - name: Configure kubeconfig for EKS
+      run: |
+        # GitHub Actions 환경에서도 kubectl이 클러스터를 인식하도록 설정
+        aws eks --region ap-northeast-2 update-kubeconfig --name petclinic-cluster
 
     - name: Deploy PetClinic via Helm
       run: |
-        # 네임스페이스가 없다면 생성 (dry-run으로 검증 후 적용)
+        # 네임스페이스가 없다면 생성 (dry-run으로 확인 후 apply)
         kubectl create namespace petclinic --dry-run=client -o yaml | kubectl apply -f -
 
-        # Helm Chart를 설치 또는 업데이트 (--install: 없으면 설치, 있으면 upgrade)
+        # Helm Chart를 배포하거나 업그레이드 (없으면 install, 있으면 upgrade)
         helm upgrade --install petclinic ./charts/petclinic -n petclinic
