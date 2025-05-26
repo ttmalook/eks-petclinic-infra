@@ -1,7 +1,0 @@
-# EFS용 StorageClass 정의
-# 이 StorageClass는 CSI Driver가 EFS 볼륨을 자동으로 연결할 수 있도록 합니다.
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: efs-sc
-provisioner: efs.csi.aws.com
