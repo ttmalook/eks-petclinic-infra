@@ -1,67 +1,67 @@
 # GitHub Actions Workflow: EFS 자동 생성 + Kubernetes PV/PVC 적용
 # 이 워크플로는 EFS 파일시스템을 생성하고, Helm values.yaml에 volumeHandle을 자동 주입한 뒤
-# EFS용 StorageClass, PV, PVC를 클러스터에 적용합니다.
-# 또한 보안 그룹 ID와 서브넷 ID는 CloudFormation Stack Output에서 자동으로 가져옵니다.
+# EFS용 StorageClass, PV, PVC를 클러스터에 적용하는 자동화 과정을 수행합니다.
 
 name: Deploy EFS Storage and Configure Kubernetes
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:  # 수동 실행 트리거 허용
 
 jobs:
   efs-setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # GitHub Actions에서 사용하는 기본 Ubuntu 실행 환경
 
     steps:
-    # 저장소 체크아웃
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v3  # 코드 체크아웃
 
-    # AWS 인증 구성
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
+      uses: aws-actions/configure-aws-credentials@v2  # AWS 인증 정보 설정
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ap-northeast-2
 
-    # kubectl 설정
     - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
+      uses: azure/setup-kubectl@v3  # kubectl 설치
       with:
         version: v1.27.1
 
-    # kubeconfig 생성
     - name: Configure kubeconfig for EKS
       run: |
-        aws eks update-kubeconfig --region ap-northeast-2 --name petclinic-cluster
+        # kubectl이 클러스터에 접근할 수 있도록 설정
+        aws eks --region ap-northeast-2 update-kubeconfig --name petclinic-cluster
 
-    # CloudFormation 스택에서 서브넷 및 보안 그룹 ID 추출
-    - name: Get VPC Stack Outputs
-      id: cf
+    - name: Get VPC Stack Outputs (subnet, security group)
+      id: get_vpc
       run: |
-        echo "Fetching VPC outputs from CloudFormation..."
-        export STACK_NAME=vpc-3tier-stack
-        export SUBNET_ID=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --query "Stacks[0].Outputs[?OutputKey=='PrivateWebA'].OutputValue" --output text)
-        export SG_ID=$(aws ec2 describe-security-groups --filters Name=group-name,Values=eks-petclinic-cluster-sg* --query "SecurityGroups[0].GroupId" --output text)
-        export FS_ID=$(aws efs create-file-system --performance-mode generalPurpose --query "FileSystemId" --output text)
-        echo "volumeHandle=$FS_ID" >> $GITHUB_ENV
-        echo "subnetId=$SUBNET_ID" >> $GITHUB_ENV
-        echo "securityGroupId=$SG_ID" >> $GITHUB_ENV
+        # CloudFormation 스택에서 필요한 정보 추출
+        subnetId=$(aws cloudformation describe-stacks --stack-name vpc-3tier-stack           --query "Stacks[0].Outputs[?Key=='PrivateWebA'].Value" --output text)
+        securityGroupId=$(aws ec2 describe-security-groups           --filters Name=group-name,Values=*-efs-sg           --query "SecurityGroups[0].GroupId" --output text)
 
-    # Helm values.yaml 파일에 volumeHandle 값 자동 삽입
+        echo "subnetId=$subnetId" >> $GITHUB_OUTPUT
+        echo "securityGroupId=$securityGroupId" >> $GITHUB_OUTPUT
+
+    - name: Create EFS File System
+      id: create_efs
+      run: |
+        # EFS 파일 시스템 생성
+        fileSystemId=$(aws efs create-file-system           --performance-mode generalPurpose           --throughput-mode bursting           --tags Key=Name,Value=petclinic-efs           --query 'FileSystemId' --output text)
+        echo "volumeHandle=$fileSystemId" >> $GITHUB_OUTPUT
+
     - name: Update Helm values.yaml
       run: |
-        sed -i "s|volumeHandle:.*|volumeHandle: ${volumeHandle}|" charts/petclinic/values.yaml
+        # Helm values.yaml에 EFS volumeHandle 주입
+        sed -i "s/volumeHandle: .*/volumeHandle: ${{ steps.create_efs.outputs.volumeHandle }}/" charts/petclinic/values.yaml
 
-    # EFS Mount Target 생성 (각 가용 영역에 대해 생성 필요 시 반복)
     - name: Create EFS Mount Target
       run: |
-        aws efs create-mount-target           --file-system-id ${volumeHandle}           --subnet-id ${subnetId}           --security-groups ${securityGroupId}
+        # EFS를 VPC 서브넷에 연결하는 마운트 타겟 생성
+        aws efs create-mount-target           --file-system-id ${{ steps.create_efs.outputs.volumeHandle }}           --subnet-id ${{ steps.get_vpc.outputs.subnetId }}           --security-groups ${{ steps.get_vpc.outputs.securityGroupId }}
 
-    # Kubernetes에 StorageClass, PV, PVC 적용
     - name: Apply EFS StorageClass, PV, PVC
       run: |
-        kubectl apply -f efs/storageclass.yaml
-        kubectl apply -f efs/pv.yaml
-        kubectl apply -f efs/pvc.yaml
+        # 스토리지클래스, PV, PVC를 클러스터에 적용
+        kubectl apply -f charts/petclinic/templates/storageclass.yaml
+        kubectl apply -f charts/petclinic/templates/pv.yaml
+        kubectl apply -f charts/petclinic/templates/pvc.yaml
