@@ -1,0 +1,8 @@
+web:
+  image: httpd:2.4
+  port: 80
+
+was:
+  image: your-repo/petclinic:latest
+  port: 8080
+  replicas: 2

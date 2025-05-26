@@ -1,0 +1,35 @@
+# GitHub Actions Workflow: EFS 관련 Kubernetes 리소스 자동 배포
+# 수동 실행(workflow_dispatch)을 트리거로 사용
+# 이 워크플로는 StorageClass, PersistentVolume, PersistentVolumeClaim을 생성합니다.
+
+name: Deploy EFS Storage
+
+on:
+  workflow_dispatch:  # 수동 실행을 허용하는 트리거
+
+jobs:
+  efs-setup:
+    runs-on: ubuntu-latest  # GitHub Actions에서 제공하는 기본 실행 환경
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3  # 저장소 코드 체크아웃
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}  # GitHub Secrets에서 키를 가져옵니다
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-2  # 서울 리전
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3  # kubectl 설치
+      with:
+        version: v1.27.1
+
+    - name: Apply EFS StorageClass, PV, PVC
+      run: |
+        # 순서대로 EFS 관련 리소스를 적용합니다.
+        kubectl apply -f efs/storageclass.yaml
+        kubectl apply -f efs/efs-pv.yaml
+        kubectl apply -f efs/efs-pvc.yaml
