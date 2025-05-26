@@ -1,8 +1,8 @@
 name: deploy-efs
 
 on:
-  workflow_dispatch:  # 수동 실행 허용
-  push:               # 특정 파일 변경 시 자동 실행
+  workflow_dispatch:
+  push:
     paths:
       - 'efs/**'
       - '.github/workflows/deploy-efs.yaml'
@@ -12,16 +12,16 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: ap-northeast-2                    # AWS 리전 설정
-      EKS_CLUSTER_NAME: petclinic-cluster           # 실제 EKS 클러스터 이름
-      VPC_STACK_NAME: vpc-3tier-stack               # 실제 VPC 스택 이름
+      AWS_REGION: ap-northeast-2
+      EKS_CLUSTER_NAME: petclinic-cluster
+      VPC_STACK_NAME: vpc-3tier-stack
 
     steps:
-      # 1. GitHub 저장소 코드 체크아웃
+      # 1. 저장소 체크아웃
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. AWS 자격 증명 구성 (GitHub Secrets 사용)
+      # 2. AWS 인증 구성
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -29,37 +29,36 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3. kubectl CLI 설치
+      # 3. kubectl 설치
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
 
-      # 4. EKS 클러스터와 연결을 위한 kubeconfig 구성
+      # 4. EKS 연결을 위한 kubeconfig 구성
       - name: Configure kubeconfig for EKS
         run: |
           aws eks update-kubeconfig \
             --region $AWS_REGION \
             --name $EKS_CLUSTER_NAME
 
-     # 5. CloudFormation 스택에서 SubnetId, SecurityGroupId 추출 및 디버깅
+      # 5. VPC Stack Outputs 조회 및 디버깅
       - name: Get VPC Stack Outputs (with debug)
         id: vpc
         run: |
           subnet_id=$(aws cloudformation describe-stacks \
-          --stack-name $VPC_STACK_NAME \
-          --query "Stacks[0].Outputs[?OutputKey=='SubnetId'].OutputValue" \
-          --output text)
+            --stack-name $VPC_STACK_NAME \
+            --query "Stacks[0].Outputs[?OutputKey=='PublicSubnet1'].OutputValue" \
+            --output text)
 
           sg_id=$(aws cloudformation describe-stacks \
-          --stack-name $VPC_STACK_NAME \
-          --query "Stacks[0].Outputs[?OutputKey=='SecurityGroupId'].OutputValue" \
-          --output text)
+            --stack-name $VPC_STACK_NAME \
+            --query "Stacks[0].Outputs[?OutputKey=='DefaultSecurityGroup'].OutputValue" \
+            --output text)
 
           echo "👉 Subnet ID: $subnet_id"
           echo "👉 Security Group ID: $sg_id"
 
           echo "subnet_id=$subnet_id" >> $GITHUB_OUTPUT
           echo "sg_id=$sg_id" >> $GITHUB_OUTPUT
-
 
       # 6. EFS 파일 시스템 생성
       - name: Create EFS File System
@@ -74,7 +73,7 @@ jobs:
           echo "fs_id=$fs_id" >> $GITHUB_OUTPUT
           echo "EFS FileSystem ID: $fs_id"
 
-      # 7. EFS 상태 수동 대기 (available 될 때까지 반복 확인)
+      # 7. EFS 상태 수동 대기
       - name: Wait for EFS to be available
         run: |
           fs_id=${{ steps.efs.outputs.fs_id }}
@@ -95,7 +94,7 @@ jobs:
             sleep 5
           done
 
-      # 8. 마운트 타겟 생성 (subnet 및 security group 연결)
+      # 8. EFS 마운트 타겟 생성
       - name: Create EFS Mount Target
         run: |
           aws efs create-mount-target \
@@ -103,13 +102,13 @@ jobs:
             --subnet-id ${{ steps.vpc.outputs.subnet_id }} \
             --security-groups ${{ steps.vpc.outputs.sg_id }}
 
-      # 9. Helm values.yaml 파일에 volumeHandle에 EFS ID 삽입
+      # 9. Helm values.yaml 수정 (EFS ID 주입)
       - name: Update Helm values.yaml (inject EFS volumeHandle)
         run: |
           efs_id=${{ steps.efs.outputs.fs_id }}
           sed -i "s|volumeHandle:.*|volumeHandle: ${efs_id}|" efs/values.yaml
 
-      # 10. StorageClass, PV, PVC 리소스를 쿠버네티스에 적용
+      # 10. StorageClass / PV / PVC 리소스 적용
       - name: Apply EFS StorageClass, PV, PVC
         run: |
           kubectl apply -f efs/storageclass.yaml
