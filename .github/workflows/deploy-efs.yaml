@@ -10,7 +10,7 @@ on:
 
 jobs:
   efs-setup:
-=======
+
   workflow_dispatch:
   push:
     paths:
