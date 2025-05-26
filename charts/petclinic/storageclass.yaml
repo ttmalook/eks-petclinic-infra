@@ -1,0 +1,9 @@
+# EFS용 StorageClass 정의
+# EFS CSI 드라이버를 통해 동적으로 연결되지 않고,
+# Helm에서 수동으로 정의된 PV/PVC에 매칭되도록 설정됨
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc  # PVC에서 참조할 이름
+provisioner: efs.csi.aws.com  # Amazon EFS CSI 드라이버 사용
