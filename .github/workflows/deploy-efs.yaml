@@ -54,6 +54,12 @@ jobs:
         # Helm values.yaml에 EFS volumeHandle 주입
         sed -i "s/volumeHandle: .*/volumeHandle: ${{ steps.create_efs.outputs.volumeHandle }}/" charts/petclinic/values.yaml
 
+    - name: Debug subnet and securityGroup
+      run: |
+        echo "SubnetId: ${{ steps.get-outputs.outputs.subnetId }}"
+        echo "SecurityGroupId: ${{ steps.get-outputs.outputs.securityGroupId }}"
+
+
     - name: Create EFS Mount Target
       run: |
         # EFS를 VPC 서브넷에 연결하는 마운트 타겟 생성
