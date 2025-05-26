@@ -1,0 +1,8 @@
+# EFS용 StorageClass 정의
+# EFS CSI 드라이버를 사용하여 PersistentVolume을 동적으로 연결합니다.
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc  # 이 StorageClass를 PVC에서 참조합니다
+provisioner: efs.csi.aws.com  # EFS CSI 드라이버 사용
