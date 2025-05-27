@@ -18,8 +18,13 @@ was:
 
 # EFS 볼륨 설정
 storage:
-  volumeHandle: fs-08fadcbeeacf5d6a1::fsap-02a9fdb29ebdffcf7
+  volumeHandle: ""  # GitHub Actions에서 자동 주입됨
   accessModes:
     - ReadWriteMany
   size: 5Gi
   storageClassName: efs-sc
+
+# PVC 설정 (필요 시 Helm에서 참조)
+persistence:
+  enabled: true
+  existingClaim: efs-pvc
