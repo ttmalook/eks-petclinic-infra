@@ -2,7 +2,6 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: efs-sc  # PVC에서 참조할 이름
-  annotations:
-    meta.helm.sh/release-name: efs-storage
-    meta.helm.sh/release-namespace: petclinic
-provisioner: efs.csi.aws.com  # Amazon EFS CSI 드라이버 사용
+provisioner: efs.csi.aws.com  # Amazon EFS CSI 드라이버
+reclaimPolicy: Retain         # PVC 삭제 후에도 EFS 유지
+volumeBindingMode: Immediate  # 즉시 바인딩
