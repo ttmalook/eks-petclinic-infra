@@ -9,9 +9,12 @@ spec:
   capacity:
     storage: {{ .Values.storage.size | default "5Gi" }}  # 의미 없는 값이지만 필수 입력
   volumeMode: Filesystem
-  accessModes: {{ toJson .Values.storage.accessModes | default "[\"ReadWriteMany\"]" }}  # 다중 Pod 접근 가능
+  accessModes:
+    {{- range .Values.storage.accessModes }}
+    - {{ . }}
+    {{- end }}
   persistentVolumeReclaimPolicy: Retain  # 삭제 후에도 PV 유지
-  storageClassName: {{ .Values.storage.storageClassName | default "efs-sc" }}  # PVC가 요청할 StorageClass
+  storageClassName: {{ .Values.storage.storageClassName | default "efs-sc" }}
   csi:
     driver: efs.csi.aws.com
-    volumeHandle: {{ .Values.storage.volumeHandle }}  # Helm에서 주입받은 EFS 파일시스템 ID
+    volumeHandle: {{ required "❌ .Values.storage.volumeHandle 값이 설정되지 않았습니다!" .Values.storage.volumeHandle }}
