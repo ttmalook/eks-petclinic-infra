@@ -7,7 +7,7 @@ kind: Service
 metadata:
   name: petclinic-web
 spec:
-  type: {{ .Values.web.service.type | default "ClusterIP" }}  # 외부 노출 시 LoadBalancer로 설정 (기본은 ClusterIP)
+  type: {{ .Values.web.service.type | default "LoadBalancer" }}  # 외부 노출 시 LoadBalancer로 설정 (기본은 ClusterIP)
   selector:
     app: petclinic-web
   ports:
