@@ -38,7 +38,7 @@ jobs:
         id: extract
         run: |
           set -e
-          STACK_NAME="3Tier-VPC"
+          STACK_NAME="vpc-3tier-stack"
 
           # 스택 존재 여부 확인
           if ! aws cloudformation describe-stacks --stack-name "$STACK_NAME" > /dev/null 2>&1; then
