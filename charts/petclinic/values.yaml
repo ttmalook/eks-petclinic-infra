@@ -14,17 +14,18 @@ was:
   replicas: 2
   efsMountEnabled: true
   service:
-    type: ClusterIP  # 내부 통신용
+    type: ClusterIP
 
 # EFS 볼륨 설정
 storage:
-  volumeHandle: ""  # GitHub Actions에서 자동 주입됨
+  # GitHub Actions 또는 --set 옵션으로 반드시 오버라이드해야 함
+  volumeHandle: ""  # 기본값은 공백으로 설정
   accessModes:
     - ReadWriteMany
   size: 5Gi
   storageClassName: efs-sc
 
-# PVC 설정 (필요 시 Helm에서 참조)
+# PVC 설정
 persistence:
   enabled: true
-  existingClaim: efs-pvc
+  existingClaim: petclinic-efs-pvc
