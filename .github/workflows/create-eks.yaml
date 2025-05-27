@@ -3,28 +3,27 @@ name: Create EKS Cluster
 # ============================================================
 # GitHub Actions Workflow: EKS 클러스터 자동 생성
 # ------------------------------------------------------------
-# 이 워크플로는 다음 작업을 자동으로 수행합니다.
-# 1. CloudFormation으로 생성된 VPC Stack에서 VPC ID/Subnet ID를 추출
-# 2. eks-cluster.yaml 파일을 동적으로 생성
-# 3. eksctl을 이용해 EKS 클러스터 생성
+# 1. CloudFormation으로 생성된 VPC Stack에서 VPC ID/Subnet ID 추출
+# 2. 해당 값으로 eks-cluster.yaml 파일을 동적으로 생성
+# 3. eksctl을 사용하여 EKS 클러스터 자동 생성
 # ============================================================
 
 on:
   workflow_dispatch:  # 수동 실행 허용
   push:
     paths:
-      - .github/workflows/create-eks.yaml
+      - .github/workflows/create-eks.yaml  # 워크플로 변경 시 자동 실행
 
 jobs:
   eks-create:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: GitHub 저장소의 코드를 체크아웃합니다.
+      # Step 1: GitHub 리포지토리 코드 체크아웃
       - name: Checkout
         uses: actions/checkout@v3
 
-      # Step 2: GitHub Secrets에 등록된 AWS 자격 증명을 사용하여 인증합니다.
+      # Step 2: AWS 자격 증명 구성 (Secrets에서 키를 불러옴)
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -32,32 +31,41 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-northeast-2
 
-      # Step 3: CloudFormation 스택 출력값에서 VPC/Subnet ID를 추출합니다.
-      # - VpcId, PrivateSubnetA, PrivateSubnetC 라는 OutputKey를 기준으로 값 추출
+      # Step 3: CloudFormation Outputs에서 VPC/Subnet ID 추출
+      # - 스택 이름이 존재하는지 확인
+      # - OutputKey: VpcId, PrivateSubnetA, PrivateSubnetC 기준으로 ID 추출
       - name: Extract CloudFormation Outputs
         id: extract
         run: |
-          VPC_ID=$(aws cloudformation describe-stacks             --stack-name petclinic-vpc             --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue"             --output text)
+          set -e
+          STACK_NAME="3Tier-VPC"
 
-          SUBNET_A=$(aws cloudformation describe-stacks             --stack-name petclinic-vpc             --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetA'].OutputValue"             --output text)
+          # 스택 존재 여부 확인
+          if ! aws cloudformation describe-stacks --stack-name "$STACK_NAME" > /dev/null 2>&1; then
+            echo "❌ Stack '$STACK_NAME' does not exist. Please check the name."
+            exit 1
+          fi
 
-          SUBNET_C=$(aws cloudformation describe-stacks             --stack-name petclinic-vpc             --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetC'].OutputValue"             --output text)
+          # VPC 및 Subnet ID 추출
+          VPC_ID=$(aws cloudformation describe-stacks             --stack-name "$STACK_NAME"             --query "Stacks[0].Outputs[?OutputKey=='VpcId'].OutputValue"             --output text)
 
-          echo "✅ VPC_ID=$VPC_ID"
-          echo "✅ SUBNET_A=$SUBNET_A"
-          echo "✅ SUBNET_C=$SUBNET_C"
+          SUBNET_A=$(aws cloudformation describe-stacks             --stack-name "$STACK_NAME"             --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetA'].OutputValue"             --output text)
 
+          SUBNET_C=$(aws cloudformation describe-stacks             --stack-name "$STACK_NAME"             --query "Stacks[0].Outputs[?OutputKey=='PrivateSubnetC'].OutputValue"             --output text)
+
+          # 환경 변수로 저장하여 이후 단계에서 사용
           echo "VPC_ID=$VPC_ID" >> $GITHUB_ENV
           echo "SUBNET_A=$SUBNET_A" >> $GITHUB_ENV
           echo "SUBNET_C=$SUBNET_C" >> $GITHUB_ENV
 
-      # Step 4: eksctl CLI를 설치합니다 (GitHub Actions 환경에는 기본 설치되어 있지 않음)
+      # Step 4: eksctl CLI 설치 (기본 미포함)
       - name: Install eksctl
         run: |
           curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
           sudo mv /tmp/eksctl /usr/local/bin
 
-      # Step 5: 추출된 VPC/Subnet ID 값을 기반으로 eks-cluster.yaml 파일을 동적으로 생성합니다.
+      # Step 5: 동적으로 eks-cluster.yaml 파일 생성
+      # - 추출된 VPC/Subnet ID를 사용하여 구성 파일 생성
       - name: Generate eks-cluster.yaml
         run: |
           cat > eks-cluster.yaml <<EOF
@@ -84,6 +92,6 @@ jobs:
               privateNetworking: true
           EOF
 
-      # Step 6: eksctl을 사용하여 EKS 클러스터를 실제로 생성합니다.
+      # Step 6: eksctl로 EKS 클러스터 생성
       - name: Create EKS Cluster
         run: eksctl create cluster -f eks-cluster.yaml
