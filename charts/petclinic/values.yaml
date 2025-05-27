@@ -3,6 +3,7 @@ web:
   image: httpd:2.4
   port: 80
   replicas: 2
+  efsMountEnabled: false
   service:
     type: LoadBalancer
 
@@ -11,6 +12,9 @@ was:
   image: your-repo/petclinic:latest
   port: 8080
   replicas: 2
+  efsMountEnabled: true
+  service:
+    type: ClusterIP  # 내부 통신용
 
 # EFS 볼륨 설정
 storage:
