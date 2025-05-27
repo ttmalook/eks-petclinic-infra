@@ -37,7 +37,7 @@ jobs:
     - name: Configure kubeconfig for EKS
       run: |
         # GitHub Actions 환경에서도 kubectl이 클러스터를 인식하도록 설정
-        aws eks --region ap-northeast-2 update-kubeconfig --name petclinic-cluster
+        aws eks --region ap-northeast-2 update-kubeconfig --name petclinic
 
     - name: Deploy PetClinic via Helm
       run: |
