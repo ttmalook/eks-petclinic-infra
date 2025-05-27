@@ -17,10 +17,14 @@ spec:
           image: {{ .Values.was.image }}
           ports:
             - containerPort: {{ .Values.was.port }}
+          {{- if .Values.was.efsMountEnabled }}
           volumeMounts:
-            - mountPath: /app/logs
-              name: efs-logs
+            - name: efs-logs
+              mountPath: /app/logs
+          {{- end }}
+      {{- if .Values.was.efsMountEnabled }}
       volumes:
         - name: efs-logs
           persistentVolumeClaim:
-            claimName: efs-pvc
+            claimName: {{ .Values.persistence.existingClaim | default "efs-pvc" }}
+      {{- end }}
