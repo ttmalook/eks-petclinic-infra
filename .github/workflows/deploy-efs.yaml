@@ -20,15 +20,13 @@ jobs:
 
     env:
       AWS_REGION: ap-northeast-2                    # 배포할 리전
-      EKS_CLUSTER_NAME: petclinic-cluster           # EKS 클러스터 이름
-      VPC_STACK_NAME: vpc-3tier-stack               # EFS 생성에 사용할 VPC Stack 이름 (CloudFormation 기준)
+      EKS_CLUSTER_NAME: petclinic                   # 클러스터 이름 수정됨
+      VPC_STACK_NAME: vpc-3tier-stack               # VPC Stack 이름 (CloudFormation 기준)
 
     steps:
-      # 1. 저장소 코드 체크아웃
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2. GitHub Secrets에서 AWS 자격 증명 불러오기
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -36,92 +34,50 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # 3. kubectl 설치 (kubectl apply, get 등 사용 가능하도록 설정)
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
 
-      # 4. Helm CLI 설치 (helm upgrade --install 등 사용 가능하도록 설정)
       - name: Install Helm
         uses: azure/setup-helm@v3
 
-      # 5. EKS 클러스터의 kubeconfig 구성 (kubectl과 helm이 해당 클러스터를 조작할 수 있도록)
       - name: Configure kubeconfig for EKS
         run: |
-          aws eks update-kubeconfig \
-            --region $AWS_REGION \
-            --name $EKS_CLUSTER_NAME
+          aws eks update-kubeconfig             --region $AWS_REGION             --name $EKS_CLUSTER_NAME
 
-      # 6. CloudFormation 스택에서 Subnet ID, VPC ID, 보안 그룹 ID 추출
       - name: Get VPC subnet and default SG
         id: vpc
         run: |
-          # PublicSubnetA 키의 서브넷 ID 추출
-          subnet_id=$(aws cloudformation describe-stacks \
-            --stack-name $VPC_STACK_NAME \
-            --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetA'].OutputValue" \
-            --output text)
-
-          # VPC ID 추출
-          vpc_id=$(aws cloudformation describe-stacks \
-            --stack-name $VPC_STACK_NAME \
-            --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue" \
-            --output text)
-
-          # 기본 보안 그룹 ID 추출
-          sg_id=$(aws ec2 describe-security-groups \
-            --region $AWS_REGION \
-            --filters Name=vpc-id,Values=$vpc_id Name=group-name,Values=default \
-            --query "SecurityGroups[0].GroupId" \
-            --output text)
-
-          # 추출된 값을 출력 및 워크플로우 출력 변수로 등록
+          subnet_id=$(aws cloudformation describe-stacks             --stack-name $VPC_STACK_NAME             --query "Stacks[0].Outputs[?OutputKey=='PublicSubnetA'].OutputValue"             --output text)
+          vpc_id=$(aws cloudformation describe-stacks             --stack-name $VPC_STACK_NAME             --query "Stacks[0].Outputs[?OutputKey=='VPCId'].OutputValue"             --output text)
+          sg_id=$(aws ec2 describe-security-groups             --region $AWS_REGION             --filters Name=vpc-id,Values=$vpc_id Name=group-name,Values=default             --query "SecurityGroups[0].GroupId"             --output text)
           echo "subnet_id=$subnet_id" >> $GITHUB_OUTPUT
           echo "sg_id=$sg_id" >> $GITHUB_OUTPUT
 
-      # 7. EFS 파일 시스템 생성 (태그로 구분 가능)
       - name: Create EFS File System
         id: efs
         run: |
-          fs_id=$(aws efs create-file-system \
-            --region $AWS_REGION \
-            --tags Key=Name,Value=petclinic-efs \
-            --query "FileSystemId" \
-            --output text)
-
+          fs_id=$(aws efs create-file-system             --region $AWS_REGION             --tags Key=Name,Value=petclinic-efs             --query "FileSystemId"             --output text)
           echo "fs_id=$fs_id" >> $GITHUB_OUTPUT
           echo "EFS FileSystem ID: $fs_id"
 
-      # 8. EFS 파일 시스템이 'available' 상태가 될 때까지 대기
       - name: Wait for EFS to be available
         run: |
           fs_id=${{ steps.efs.outputs.fs_id }}
           while true; do
-            status=$(aws efs describe-file-systems \
-              --file-system-id $fs_id \
-              --query "FileSystems[0].LifeCycleState" \
-              --output text)
-
+            status=$(aws efs describe-file-systems               --file-system-id $fs_id               --query "FileSystems[0].LifeCycleState"               --output text)
             echo "Current EFS state: $status"
-
             if [ "$status" == "available" ]; then
               echo "✅ EFS is now available."
               break
             fi
-
             echo "⏳ Waiting for EFS to become available..."
             sleep 5
           done
 
-      # 9. EFS 마운트 타겟 생성 (EKS가 있는 서브넷에 연결 + 보안 그룹 설정)
       - name: Create EFS Mount Target
         run: |
-          aws efs create-mount-target \
-            --file-system-id ${{ steps.efs.outputs.fs_id }} \
-            --subnet-id ${{ steps.vpc.outputs.subnet_id }} \
-            --security-groups ${{ steps.vpc.outputs.sg_id }}
+          aws efs create-mount-target             --file-system-id ${{ steps.efs.outputs.fs_id }}             --subnet-id ${{ steps.vpc.outputs.subnet_id }}             --security-groups ${{ steps.vpc.outputs.sg_id }}
 
-      # 10. Helm Chart(petclinic)에 EFS ID를 넘겨서 배포
       - name: Deploy EFS via Helm (charts/petclinic)
         run: |
-          helm upgrade --install efs-storage ./charts/petclinic \
-            --set storage.volumeHandle=${{ steps.efs.outputs.fs_id }}
+          helm upgrade --install efs-storage ./charts/petclinic             --set storage.volumeHandle=${{ steps.efs.outputs.fs_id }}
