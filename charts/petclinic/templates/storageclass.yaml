@@ -4,5 +4,5 @@ metadata:
   name: efs-sc  # PVC에서 참조할 이름
   annotations:
     meta.helm.sh/release-name: efs-storage
-    meta.helm.sh/release-namespace: default
+    meta.helm.sh/release-namespace: petclinic
 provisioner: efs.csi.aws.com  # Amazon EFS CSI 드라이버 사용
