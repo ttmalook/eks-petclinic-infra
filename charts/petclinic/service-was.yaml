@@ -3,6 +3,7 @@ kind: Service
 metadata:
   name: petclinic-was  # 백엔드 서비스 이름
 spec:
+type: {{ .Values.was.service.type | default "ClusterIP" }}
   selector:
     app: petclinic-was  # 파드 선택자
   ports:
