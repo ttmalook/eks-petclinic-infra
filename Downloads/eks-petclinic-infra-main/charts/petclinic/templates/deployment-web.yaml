@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: petclinic-web  # Deployment 리소스 이름
+spec:
+  replicas: 1  # 웹 서버는 기본 1개 파드로 실행
+  selector:
+    matchLabels:
+      app: petclinic-web  # 서비스와 연동될 label
+  template:
+    metadata:
+      labels:
+        app: petclinic-web  # 파드 라벨
+    spec:
+      containers:
+        - name: apache  # 컨테이너 이름
+          image: {{ .Values.web.image }}  # Helm values에서 주입된 httpd 이미지 사용
+          ports:
+            - containerPort: {{ .Values.web.port }}  # Apache 포트 (기본 80)

@@ -1,0 +1,48 @@
+# GitHub Actions Workflow: Helm Chart 기반 PetClinic 앱 자동 배포
+# 이 워크플로는 charts/petclinic/ 디렉토리 변경 시 자동 실행되며, 수동 실행도 가능합니다.
+
+name: Deploy PetClinic via Helm
+
+on:
+  push:
+    paths:
+      - 'charts/petclinic/**'  # Helm Chart 파일이 수정되면 워크플로 트리거
+  workflow_dispatch:           # GitHub UI에서 수동 실행 허용
+
+jobs:
+  helm-deploy:
+    runs-on: ubuntu-latest  # GitHub Actions 기본 Linux 환경에서 실행
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3  # 현재 GitHub 저장소의 소스코드를 체크아웃
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2  # AWS 인증 구성
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-2
+
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: v1.27.1  # kubectl 버전 설정
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: v3.12.0  # Helm 버전 설정
+
+    - name: Configure kubeconfig for EKS
+      run: |
+        # GitHub Actions 환경에서도 kubectl이 클러스터를 인식하도록 설정
+        aws eks --region ap-northeast-2 update-kubeconfig --name petclinic-cluster
+
+    - name: Deploy PetClinic via Helm
+      run: |
+        # 네임스페이스가 없다면 생성 (dry-run으로 확인 후 apply)
+        kubectl create namespace petclinic --dry-run=client -o yaml | kubectl apply -f -
+
+        # Helm Chart를 배포하거나 업그레이드 (없으면 install, 있으면 upgrade)
+        helm upgrade --install petclinic ./charts/petclinic -n petclinic
