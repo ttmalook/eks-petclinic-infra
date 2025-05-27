@@ -4,11 +4,13 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: efs-pvc  # pod에서 이 이름으로 claim
+  name: {{ .Values.persistence.existingClaim | default "efs-pvc" }}  # 디폴트 이름
 spec:
   accessModes:
-    - ReadWriteMany  # 여러 Pod에서 공유 가능
-  storageClassName: efs-sc  # StorageClass 참조
+    {{- range .Values.storage.accessModes }}
+    - {{ . }}
+    {{- end }}
+  storageClassName: {{ .Values.storage.storageClassName | default "efs-sc" }}
   resources:
     requests:
-      storage: 5Gi  # 요청 용량 (EFS 특성상 사실상 무제한)
+      storage: {{ .Values.storage.size | default "5Gi" }}
