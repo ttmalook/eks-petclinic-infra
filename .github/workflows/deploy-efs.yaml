@@ -80,4 +80,6 @@ jobs:
 
       - name: Deploy EFS via Helm (charts/petclinic)
         run: |
-          helm upgrade --install efs-storage ./charts/petclinic             --set storage.volumeHandle=${{ steps.efs.outputs.fs_id }}
+          helm upgrade --install petclinic ./charts/petclinic \
+                       --set storage.volumeHandle=${{ steps.efs.outputs.fs_id }} \
+                       -n petclinic
