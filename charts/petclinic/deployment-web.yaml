@@ -21,10 +21,3 @@ spec:
           image: {{ .Values.web.image }}  # 웹 컨테이너에서 사용할 이미지 (기본: httpd:2.4)
           ports:
             - containerPort: {{ .Values.web.port }}  # 컨테이너가 바인딩할 포트 번호
-          volumeMounts:
-            - name: efs-volume              # 마운트할 볼륨 이름
-              mountPath: /usr/local/apache2/htdocs  # HTML 파일 경로 (httpd 기본 경로)
-      volumes:
-        - name: efs-volume
-          persistentVolumeClaim:
-            claimName: efs-pvc  # 미리 생성된 PVC 또는 Helm에서 정의된 PVC와 연결됨
