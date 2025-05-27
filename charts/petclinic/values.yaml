@@ -1,18 +1,21 @@
 # Web 서버 설정
 web:
-  image: httpd:2.4        # 프론트엔드 이미지
+  image: httpd:2.4
   port: 80
+  replicas: 2
+  service:
+    type: LoadBalancer
 
 # WAS 설정
 was:
-  image: your-repo/petclinic:latest  # 백엔드 이미지
+  image: your-repo/petclinic:latest
   port: 8080
   replicas: 2
 
-# EFS 볼륨 설정 (자동 주입 대상)
+# EFS 볼륨 설정
 storage:
-  volumeHandle: fs-08fadcbeeacf5d6a1::fsap-02a9fdb29ebdffcf7  # EFS Access Point를 사용하는 파일시스템 ID + Access Point ID
+  volumeHandle: fs-08fadcbeeacf5d6a1::fsap-02a9fdb29ebdffcf7
   accessModes:
-    - ReadWriteMany  # EFS는 여러 Pod가 동시에 읽고 쓸 수 있음
-  size: 5Gi  # 실제 용량은 의미 없지만 필수 입력 (논리적 값)
-  storageClassName: efs-sc  # StorageClass 이름 (PV/PVC와 일치해야 함)
+    - ReadWriteMany
+  size: 5Gi
+  storageClassName: efs-sc
