@@ -31,7 +31,7 @@ persistence:
 
 # DB 설정
 env:
-  DB_HOST: "doit-baek-private-db.cbzhw40kmq8h.us-west-2.rds.amazonaws.com"
+  DB_HOST: "database-1.cluster-czgliwfs2orh.ap-northeast-2.rds.amazonaws.com"
   DB_PORT: "3306"
   DB_NAME: "petclinic"
   DB_USERNAME: "admin"
