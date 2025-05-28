@@ -1,9 +1,9 @@
-# Web 서버 설정
+# Web 서버 설정 
 web:
   image: httpd:2.4
   port: 80
   replicas: 2
-  efsMountEnabled: false
+  efsMountEnabled: false  # 웹은 EFS 미사용
   service:
     type: LoadBalancer
 
@@ -12,14 +12,13 @@ was:
   image: ttmalook/petclinic_btc:latest
   port: 8080
   replicas: 2
-  efsMountEnabled: true
+  efsMountEnabled: true  # 와스는 EFS 사용
   service:
     type: ClusterIP
 
 # EFS 볼륨 설정
 storage:
-  # GitHub Actions 또는 --set 옵션으로 반드시 오버라이드해야 함
-  volumeHandle: ""  # 기본값은 공백으로 설정
+  volumeHandle: fs-03aa1661f344a73d0  # 실제 EFS 파일시스템 ID
   accessModes:
     - ReadWriteMany
   size: 5Gi
@@ -28,13 +27,12 @@ storage:
 # PVC 설정
 persistence:
   enabled: true
-  existingClaim: petclinic-efs-pvc
+  existingClaim: petclinic-efs-pvc  # WAS에서 사용할 PVC 이름
 
-#DB 설정
+# DB 설정
 env:
   DB_HOST: "doit-baek-private-db.cbzhw40kmq8h.us-west-2.rds.amazonaws.com"
   DB_PORT: "3306"
   DB_NAME: "petclinic"
   DB_USERNAME: "admin"
   DB_PASSWORD: "password"  # 실제 배포 시 secretsManager 연동 필요
-
