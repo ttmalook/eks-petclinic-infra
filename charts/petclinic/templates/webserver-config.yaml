@@ -8,10 +8,10 @@ data:
     Listen 80
     ServerName localhost
 
-    # ✅ 필수: MPM 모듈 로딩
+    # ✅ 필수 MPM 모듈
     LoadModule mpm_event_module modules/mod_mpm_event.so
 
-    # ✅ 프록시 설정
+    # ✅ 프록시 모듈
     LoadModule proxy_module modules/mod_proxy.so
     LoadModule proxy_http_module modules/mod_proxy_http.so
 
@@ -19,6 +19,10 @@ data:
     LoadModule mime_module modules/mod_mime.so
     LoadModule dir_module modules/mod_dir.so
     LoadModule log_config_module modules/mod_log_config.so
+
+    # ✅ 누락된 필수 모듈 (❗️ 반드시 추가)
+    LoadModule authz_core_module modules/mod_authz_core.so
+    LoadModule unixd_module modules/mod_unixd.so
 
     DocumentRoot "/usr/local/apache2/htdocs"
     <Directory "/usr/local/apache2/htdocs">
