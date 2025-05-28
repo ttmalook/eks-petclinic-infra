@@ -17,14 +17,37 @@ spec:
           image: {{ .Values.was.image }}
           ports:
             - containerPort: {{ .Values.was.port }}
-          {{- if .Values.was.efsMountEnabled }}
+          env:
+            - name: DB_HOST
+              value: {{ .Values.env.DB_HOST }}
+            - name: DB_PORT
+              value: {{ .Values.env.DB_PORT }}
+            - name: DB_NAME
+              value: {{ .Values.env.DB_NAME }}
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: petclinic-secret
+                  key: DB_PASSWORD
           volumeMounts:
+            - name: config-volume
+              mountPath: /app/config
+              readOnly: true
+            {{- if .Values.was.efsMountEnabled }}
             - name: efs-logs
               mountPath: /app/logs
-          {{- end }}
-      {{- if .Values.was.efsMountEnabled }}
+            {{- end }}
       volumes:
+        - name: config-volume
+          configMap:
+            name: petclinic-config
+        {{- if .Values.was.efsMountEnabled }}
         - name: efs-logs
           persistentVolumeClaim:
             claimName: {{ .Values.persistence.existingClaim | default "efs-pvc" }}
-      {{- end }}
+        {{- end }}
