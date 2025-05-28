@@ -1,13 +1,9 @@
-# ------------------------------------------------------------
-# Deployment: petclinic-web
-# 목적: Apache 웹 서버를 실행할 파드를 정의하며, EFS에 mount된 디렉토리에서 HTML 서빙
-# ------------------------------------------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: petclinic-web
 spec:
-  replicas: {{ .Values.web.replicas | default 1 }}  # values.yaml에서 설정한 파드 복제본 수, 없으면 기본 1
+  replicas: {{ .Values.web.replicas | default 1 }}
   selector:
     matchLabels:
       app: petclinic-web
@@ -18,6 +14,15 @@ spec:
     spec:
       containers:
         - name: web
-          image: {{ .Values.web.image }}  # 웹 컨테이너에서 사용할 이미지 (기본: httpd:2.4)
+          image: {{ .Values.web.image }}
           ports:
-            - containerPort: {{ .Values.web.port }}  # 컨테이너가 바인딩할 포트 번호
+            - containerPort: {{ .Values.web.port }}
+          volumeMounts:
+            - name: web-config
+              mountPath: /usr/local/apache2/conf/httpd.conf
+              subPath: httpd.conf
+              readOnly: true
+      volumes:
+        - name: web-config
+          configMap:
+            name: webserver-config
