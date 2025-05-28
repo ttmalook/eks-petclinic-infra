@@ -1,4 +1,4 @@
-apiVersion: apps/v1
+apiVersion: apps/v1 
 kind: Deployment
 metadata:
   name: petclinic-was
@@ -51,5 +51,5 @@ spec:
         {{- if .Values.was.efsMountEnabled }}
         - name: efs-logs
           persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaim | default "efs-pvc" }}
+            claimName: {{ .Release.Name }}-efs-pvc
         {{- end }}
