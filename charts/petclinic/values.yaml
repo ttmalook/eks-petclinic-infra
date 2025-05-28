@@ -9,7 +9,7 @@ web:
 
 # WAS 설정
 was:
-  image: stevekimbespin/petclinic_btc:latest
+  image: ttmalook/petclinic_btc:latest
   port: 8080
   replicas: 2
   efsMountEnabled: true
