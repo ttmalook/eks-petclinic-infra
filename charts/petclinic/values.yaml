@@ -29,3 +29,12 @@ storage:
 persistence:
   enabled: true
   existingClaim: petclinic-efs-pvc
+
+#DB 설정
+env:
+  DB_HOST: "doit-baek-private-db.cbzhw40kmq8h.us-west-2.rds.amazonaws.com"
+  DB_PORT: "3306"
+  DB_NAME: "petclinic"
+  DB_USERNAME: "admin"
+  DB_PASSWORD: "password"  # 실제 배포 시 secretsManager 연동 필요
+
