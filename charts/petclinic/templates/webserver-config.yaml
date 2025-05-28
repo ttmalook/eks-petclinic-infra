@@ -3,5 +3,15 @@ kind: ConfigMap
 metadata:
   name: webserver-config
 data:
-  httpd.conf: |
-    # 여기에 Apache 설정을 직접 작성
+   httpd.conf: |
+    ServerRoot "/usr/local/apache2"
+    Listen 80
+    ServerName localhost
+    LoadModule proxy_module modules/mod_proxy.so
+    LoadModule proxy_http_module modules/mod_proxy_http.so
+
+    <VirtualHost *:80>
+        ProxyPreserveHost On
+        ProxyPass / http://petclinic-was:8080/
+        ProxyPassReverse / http://petclinic-was:8080/
+    </VirtualHost>
